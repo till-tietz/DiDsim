@@ -7,5 +7,22 @@ Maintainer: Till Tietz <ttietz2014@gmail.com>
 Description: More about what it does (maybe more than one line)
     Use four spaces when indenting paragraphs within the Description.
 License: What license is it under?
-Encoding: UTF-8
 LazyData: true
+Imports: 
+   shiny (>= 1.7.1),
+   tibble (>= 3.1.6),
+   dplyr (>= 1.0.8),
+   magrittr (>= 2.0.2),
+   fixest (>= 0.10.2),
+   ggplot2 (>= 3.3.5),
+   ggplotify (>= 0.1.0),
+   ggpubr (>= 0.4.0),
+   did (>= 2.1.1)
+RoxygenNote: 7.1.2
+Suggests: 
+    rmarkdown,
+    knitr,
+    testthat (>= 3.0.0),
+    covr
+VignetteBuilder: knitr
+Config/testthat/edition: 3
