@@ -15,12 +15,14 @@ run_app <- function(){
 
   ui <- navbarPage("DiDsim",
                    navbarMenu("Menu",
-        # simulation panel -----------------------------------
+  # simulation panel        ----------------------------------------
+
                               tabPanel("Simulation",
                                        fluidPage(
-              # data input -----------------------------------
+      # data input          ----------------------------------------
                                          sidebarPanel(
                                            width = 4,
+                                           sliderInput("panel_length","Panel Length:", value = 3, min = 3, max = 10, step = 1, sep = ""),
                                            selectInput("g_select","Groups:",
                                                        choices = list(" ","Group 1","Group 2","Group 3"),
                                                        selected = " ",
@@ -60,9 +62,10 @@ run_app <- function(){
                                                                       "Heterogeneity in Slopes",
                                                                       "Heterogeneity in Levels and Slopes"),
                                                        selected = "None",
-                                                       width = "75%")
+                                                       width = "75%"),
+                                           actionButton("run", "Analyze")
                                          ),
-              # simulation output ---------------------------
+      # simulation output   ----------------------------------------
                                          mainPanel(
                                            width = 8,
                                            fluidRow(
