@@ -229,6 +229,9 @@ run_app <- function(){
     # estimate
     output$sim_results <- renderTable({
 
+      id <- showNotification("Computing DiD estimates...", duration = NULL, closeButton = FALSE)
+      on.exit(removeNotification(id), add = TRUE)
+
       dat <- gen_dat()
 
       twfe <- fixest::feols(y ~ treat | unit + year, data = dat)
@@ -274,6 +277,16 @@ run_app <- function(){
     output$data_params <- renderTable({
 
       dat <- gen_dat()
+
+      if(input$is_treated3){
+        g3 <- input$g3
+        te3 <- input$te3
+        te_m3 <- input$te_m3
+      }else{
+        g3 <- 1000L
+        te3 <- 0
+        te_m3 <- 0
+      }
 
       data.frame("Group" = c("Group 1", "Group 2", "Group 3"),
                  "TE" = as.character(c(input$te1, input$te2, te3)),
