@@ -24,6 +24,7 @@ did_plot <- function(data, year, y, group){
     geom_point()+
     geom_line()+
     scale_x_continuous(breaks = sort(unique(d[["year"]])))+
+    xlab("Time")+
     guides(color = guide_legend(title="Group"))+
     theme_bw()
 }

@@ -18,7 +18,9 @@ Imports:
    ggplot2 (>= 3.3.5),
    ggplotify (>= 0.1.0),
    ggpubr (>= 0.4.0),
-   did (>= 2.1.1)
+   did (>= 2.1.1),
+   tidyr (>= 1.2.0),
+   PanelMatch(>= 2.0.0)
 RoxygenNote: 7.1.2
 Suggests: 
     rmarkdown,

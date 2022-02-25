@@ -15,6 +15,9 @@
 
 did_panel_plot <- function(data, unit, year, group, treat){
 
+  data <- data[order(data[,group], decreasing = TRUE),]
+  data$unit <- rep(1:max(data[,unit]), each = length(unique(data[,year])))
+
   data$x_start <- data[[year]]
   data$x_end <- data[[year]] + 1
   data$y_start <- data[[unit]]
