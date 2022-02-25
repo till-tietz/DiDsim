@@ -31,13 +31,13 @@ run_app <- function(){
                                              condition = "input.g_select == 'Group 1'",
                                              sliderInput("te1", "Treatment Effect:", 2, min = -10, max = 10),
                                              sliderInput("te_m1", "Treatment Effect Slope:", value = 0.4, min = -1, max = 1, step = 0.05),
-                                             sliderInput("g1", "Treatment Time:", value = 1, min = 1, max = 10, step = 1, sep = "")
+                                             uiOutput("g1")
                                            ),
                                            conditionalPanel(
                                              condition = "input.g_select == 'Group 2'",
                                              sliderInput("te2", "Treatment Effect:", 2, min = -10, max = 10),
                                              sliderInput("te_m2", "Treatment Effect Slope:", value = 0.4, min = -1, max = 1, step = 0.05),
-                                             sliderInput("g2", "Treatment Time:", value = 2, min = 1, max = 10, step = 1, sep = "")
+                                             uiOutput("g2")
                                            ),
                                            conditionalPanel(
                                              condition = "input.g_select == 'Group 3'",
@@ -51,7 +51,7 @@ run_app <- function(){
                                                condition = "input.is_treated3 == true",
                                                sliderInput("te3", "Treatment Effect:", 2, min = -10, max = 10),
                                                sliderInput("te_m3", "Treatment Effect Slope:", value = 0.4, min = -1, max = 1, step = 0.05),
-                                               sliderInput("g3", "Treatment Time:", value = 3, min = 1, max = 10, step = 1, sep = "")
+                                               uiOutput("g3")
                                              )
                                            ),
                                            selectInput("presets","Heterogeneity Presets:",
@@ -89,10 +89,27 @@ run_app <- function(){
 
   server <- function(input, output, session){
 
+    # update treatment year slider selector
+    observeEvent(input$panel_length, {
+
+      output$g1 <- renderUI({
+        sliderInput("g1", "Treatment Time:", value = 1, min = 1, max = input$panel_length[1], step = 1, sep = "")
+      })
+      output$g2 <- renderUI({
+        sliderInput("g2", "Treatment Time:", value = 2, min = 1, max = input$panel_length[1], step = 1, sep = "")
+      })
+      output$g3 <- renderUI({
+        sliderInput("g3", "Treatment Time:", value = 3, min = 1, max = input$panel_length[1], step = 1, sep = "")
+      })
+
+      })
+
+
   }
 
   shiny::shinyApp(ui, server)
 }
 
+run_app()
 
 
