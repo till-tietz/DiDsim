@@ -93,16 +93,56 @@ run_app <- function(){
     observeEvent(input$panel_length, {
 
       output$g1 <- renderUI({
-        sliderInput("g1", "Treatment Time:", value = 1, min = 1, max = input$panel_length[1], step = 1, sep = "")
+        sliderInput("g1", "Treatment Time:", value = 1, min = 0, max = input$panel_length[1], step = 1, sep = "")
       })
       output$g2 <- renderUI({
-        sliderInput("g2", "Treatment Time:", value = 2, min = 1, max = input$panel_length[1], step = 1, sep = "")
+        sliderInput("g2", "Treatment Time:", value = 2, min = 0, max = input$panel_length[1], step = 1, sep = "")
       })
       output$g3 <- renderUI({
-        sliderInput("g3", "Treatment Time:", value = 3, min = 1, max = input$panel_length[1], step = 1, sep = "")
+        sliderInput("g3", "Treatment Time:", value = 3, min = 0, max = input$panel_length[1], step = 1, sep = "")
       })
 
       })
+
+    # update parameters based on heterogeneity presets
+    observeEvent(input$presets, {
+      if(input$presets == "None") {
+        updateSliderInput(inputId = "te1", value = 2)
+        updateSliderInput(inputId = "te2", value = 2)
+        updateSliderInput(inputId = "te_m1", value = 0.4)
+        updateSliderInput(inputId = "te_m2", value = 0.4)
+      }
+      else if(input$presets == "Homogeneous Effects") {
+        updateSliderInput(inputId = "te1", value = input$te1)
+        updateSliderInput(inputId = "te2", value = input$te1)
+        updateSliderInput(inputId = "te_m1", value = 0)
+        updateSliderInput(inputId = "te_m2", value = 0)
+      }
+      else if(input$presets == "Heterogeneity in Levels") {
+        updateSliderInput(inputId = "te1", value = 2)
+        updateSliderInput(inputId = "te2", value = input$te1 * 2)
+        updateSliderInput(inputId = "te_m1", value = 0)
+        updateSliderInput(inputId = "te_m2", value = 0)
+      }
+      else if(input$presets == "Heterogeneity in Levels (w/ Slopes)") {
+        updateSliderInput(inputId = "te1", value = 2)
+        updateSliderInput(inputId = "te2", value = input$te1 * 2)
+        updateSliderInput(inputId = "te_m1", value = 0.1)
+        updateSliderInput(inputId = "te_m2", value = 0.1)
+      }
+      else if(input$presets == "Heterogeneity in Slopes") {
+        updateSliderInput(inputId = "te1", value = input$te1)
+        updateSliderInput(inputId = "te2", value = input$te1)
+        updateSliderInput(inputId = "te_m1", value = 0.05)
+        updateSliderInput(inputId = "te_m2", value = 0.2)
+      }
+      else if(input$presets == "Heterogeneity in Levels and Slopes") {
+        updateSliderInput(inputId = "te1", value = 2)
+        updateSliderInput(inputId = "te2", value = input$te1 * 2)
+        updateSliderInput(inputId = "te_m1", value = 0.05)
+        updateSliderInput(inputId = "te_m2", value = 0.2)
+      }
+    })
 
 
   }
