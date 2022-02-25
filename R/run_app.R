@@ -90,7 +90,7 @@ run_app <- function(){
 
   server <- function(input, output, session){
 
-    # update treatment year slider selector
+  # update treatment year slider selector-------------------------------------------------
     observeEvent(input$panel_length, {
 
       output$g1 <- renderUI({
@@ -105,7 +105,7 @@ run_app <- function(){
 
       })
 
-    # update parameters based on heterogeneity presets
+  # update parameters based on heterogeneity presets---------------------------------------
     observeEvent(input$presets, {
       if(input$presets == "None") {
         updateSliderInput(inputId = "te1", value = 2)
@@ -145,7 +145,7 @@ run_app <- function(){
       }
     })
 
-    # generate data
+    # generate data ------------------------------------------------------------------------
     gen_dat <- eventReactive(input$run,{
 
       set.seed(123)
@@ -210,7 +210,7 @@ run_app <- function(){
 
     })
 
-    # generate plots
+    # generate plots -----------------------------------------------------------------------
     output$sim_did_plot <- renderPlot({
 
       dat <- gen_dat()
@@ -226,7 +226,7 @@ run_app <- function(){
                         ncol = 2, nrow = 1)
     })
 
-    # estimate
+    # estimate -----------------------------------------------------------------------------
     output$sim_results <- renderTable({
 
       id <- showNotification("Computing DiD estimates...", duration = NULL, closeButton = FALSE)
@@ -273,7 +273,7 @@ run_app <- function(){
 
     })
 
-    # show data parameters
+    # show data parameters -----------------------------------------------------------------
     output$data_params <- renderTable({
 
       dat <- gen_dat()
