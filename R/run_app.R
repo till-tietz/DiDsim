@@ -15,11 +15,11 @@ run_app <- function(){
 
   ui <- navbarPage("DiDsim",
                    navbarMenu("Menu",
-  # simulation panel        ----------------------------------------
+                              # simulation panel        ----------------------------------------
 
                               tabPanel("Simulation",
                                        fluidPage(
-      # data input          ----------------------------------------
+                                         # data input          ----------------------------------------
                                          sidebarPanel(
                                            width = 4,
                                            sliderInput("panel_length","Panel Length:", value = 2, min = 2, max = 10, step = 1, sep = ""),
@@ -65,7 +65,7 @@ run_app <- function(){
                                                        width = "75%"),
                                            actionButton("run", "Analyze")
                                          ),
-      # simulation output   ----------------------------------------
+                                         # simulation output   ----------------------------------------
                                          mainPanel(
                                            width = 8,
                                            fluidRow(
@@ -75,12 +75,12 @@ run_app <- function(){
                                              column(4,
                                                     align = "center",
                                                     tableOutput("data_params")
-                                              ),
+                                             ),
                                              column(4,
                                                     offset = 2,
                                                     align = "center",
                                                     tableOutput("sim_results")
-                                              )
+                                             )
                                            )
                                          )
                                        )
@@ -90,7 +90,7 @@ run_app <- function(){
 
   server <- function(input, output, session){
 
-  # update treatment year slider selector-------------------------------------------------
+    # update treatment year slider selector-------------------------------------------------
     observeEvent(input$panel_length, {
 
       output$g1 <- renderUI({
@@ -103,9 +103,9 @@ run_app <- function(){
         sliderInput("g3", "Treatment Time:", value = 3, min = 0, max = input$panel_length[1], step = 1, sep = "")
       })
 
-      })
+    })
 
-  # update parameters based on heterogeneity presets---------------------------------------
+    # update parameters based on heterogeneity presets---------------------------------------
     observeEvent(input$presets, {
       if(input$presets == "None") {
         updateSliderInput(inputId = "te1", value = 2)
