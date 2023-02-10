@@ -1,0 +1,731 @@
+---
+title: "Meta-Staggered DiD"
+author: "Till Tietz"
+date: "2022-10-16"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Simulating Bias
+
+This document outlines sources of bias in estimating staggered DiD designs, 
+with unbalanced panels. 
+
+```{r pressure, echo=FALSE}
+pacman::p_load(tibble,dplyr,magrittr,tidyr,ggplot2,Amelia,meta)
+
+make_data <- function(n,
+                      n_years,
+                      n_groups = 5,
+                      tes,
+                      tes_slope,
+                      unit_fes = NULL,
+                      year_fes = NULL,
+                      states) {
+  group_splits <- levels(cut(0:1, n_groups, include.lowest = T)) %>%
+    gsub("]", "", .) %>%
+    gsub("\\[", "", .) %>%
+    gsub("\\(", "", .) %>%
+    strsplit(., ",") %>%
+    lapply(., as.numeric)
+  
+  
+  out <- tibble(unit = 1:n) %>%
+    dplyr::mutate(group = runif(n()),
+                  g = rep(NA, n()))
+  
+  if (is.null(unit_fes)) {
+    out <- out %>%
+      dplyr::mutate(unit_fe = rnorm(n(), 0, 0.5))
+  } else {
+    out <- out %>%
+      dplyr::mutate(unit_fe = unit_fes)
+  }
+  
+  r <- vector(mode = "list", n_groups)
+  g_name <- paste("Group", 1:n_groups, sep = " ")
+  g <- c(1:(n_groups - 1), 1000)
+  
+  for (i in 1:length(group_splits)) {
+    r[[i]] <-
+      (out$group > group_splits[[i]][1] &
+         out$group <= group_splits[[i]][2])
+  }
+  
+  for (i in 1:length(r)) {
+    out$group[r[[i]]] <- g_name[i]
+    out$g[r[[i]]] <- g[i]
+  }
+  
+  out <- out %>%
+    tidyr::expand_grid(year = 0:(n_years - 1))
+  
+  if (is.null(year_fes)) {
+    out <- out %>%
+      dplyr::group_by(year) %>%
+      dplyr::mutate(year_fe = rnorm(length(year), 0, 1)) %>%
+      dplyr::ungroup()
+  } else {
+    rows <- nrow(out)
+    out <- out %>%
+      dplyr::mutate(year_fe = rep(year_fes, rows / n_years))
+  }
+  
+  
+  out <- out %>%
+    dplyr::mutate(treat = (year >= g) & (g %in% 0:(n_years - 1)),
+                  error = rnorm(n(), 0, 1))
+  
+  te <- sapply(1:(n_groups - 1), function(i)
+    paste(
+      "(out$group == 'Group ",
+      i,
+      "') * tes[",
+      i,
+      "] * (out$year >= ",
+      i,
+      ")",
+      sep = ""
+    )) %>%
+    paste(., collapse = " + ") %>%
+    paste(
+      .,
+      paste(
+        "(out$group == 'Group ",
+        n_groups,
+        "') * tes[",
+        n_groups,
+        "] * (out$year >= 1000)",
+        sep = ""
+      ),
+      sep = " + "
+    )
+  
+  te_dynamic <- sapply(1:(n_groups - 1), function(i)
+    paste(
+      "(out$group == 'Group ",
+      i,
+      "') * tes_slope[",
+      i,
+      "] * (out$year >= ",
+      i,
+      ") * (out$year - ",
+      i,
+      ")",
+      sep = ""
+    )) %>%
+    paste(., collapse = " + ") %>%
+    paste(
+      .,
+      paste(
+        "(out$group == 'Group ",
+        n_groups,
+        "') * tes_slope[",
+        n_groups,
+        "] * (out$year >= 1000) * (out$year - 1000)",
+        sep = ""
+      ),
+      sep = " + "
+    )
+  
+  out$te <- eval(parse(text = te))
+  out$te_dynamic <- eval(parse(text = te))
+  
+  out <- out %>%
+    dplyr::mutate(y = unit_fe + year_fe + te + te_dynamic + error) %>%
+    as.data.frame() %>%
+    dplyr::mutate_at("treat", as.numeric) %>%
+    dplyr::mutate(group_CSA = g) %>%
+    dplyr::mutate(group_CSA = replace(group_CSA, group_CSA == 10000, 0)) %>%
+    dplyr::mutate(treat_singular = ifelse(g == year, 1, 0))
+  
+  
+  if (length(states) == 1) {
+    state <- rep(states, n)
+  } else {
+    state <- sample(states, n, replace = TRUE)
+  }
+  
+  states <- tibble(unit = 1:n,
+                   state = state)
+  
+  out <- dplyr::left_join(out, states, by = "unit")
+  
+  return(out)
+  
+}
+
+
+make_shifted <- function(n,
+                     n_shifted,
+                     n_years,
+                     n_years_shifted,
+                     n_groups,
+                     n_groups_shifted,
+                     tes,
+                     tes_shifted,
+                     tes_slope,
+                     tes_slope_shifted,
+                     unit_fes,
+                     unit_fes_shifted,
+                     year_fes,
+                     year_fes_shifted,
+                     states){
+  
+  data <- make_data(n = n,
+                    n_years = n_years,
+                    n_groups = n_groups,
+                    tes = tes,
+                    tes_slope = tes_slope,
+                    unit_fes = unit_fes,
+                    year_fes = year_fes,
+                    states = states[1:length(states)-1])
+  
+  
+  data_shifted <- make_data(n = n_shifted,
+                            n_years = n_years_shifted,
+                            n_groups = n_groups_shifted,
+                            tes = tes_shifted,
+                            tes_slope = tes_slope_shifted,
+                            unit_fes = unit_fes_shifted,
+                            year_fes = year_fes_shifted,
+                            states = states[length(states)])%>%
+    dplyr::mutate(unit = unit + n)
+  
+  data <- rbind(data,data_shifted)
+  
+  return(data)
+}
+
+
+
+# simulation function 
+
+simulate <- function(n,
+                     n_shifted,
+                     n_years,
+                     n_years_shifted,
+                     n_groups,
+                     n_groups_shifted,
+                     tes,
+                     tes_shifted,
+                     tes_slope,
+                     tes_slope_shifted,
+                     unit_fes,
+                     unit_fes_shifted,
+                     year_fes,
+                     year_fes_shifted,
+                     states){
+  
+  data <- make_shifted(n = n,
+                       n_shifted = n_shifted,
+                       n_years = n_years,
+                       n_years_shifted = n_years_shifted,
+                       n_groups = n_groups,
+                       n_groups_shifted = n_groups_shifted,
+                       tes = tes,
+                       tes_shifted = tes_shifted,
+                       tes_slope = tes_slope,
+                       tes_slope_shifted = tes_slope_shifted,
+                       unit_fes = unit_fes,
+                       unit_fes_shifted = unit_fes_shifted,
+                       year_fes = year_fes,
+                       year_fes_shifted = year_fes_shifted,
+                       states = states)
+  
+  estimate <- fixest::feols(y ~ treat | unit + year, data = data)%>%
+    broom::tidy()%>%
+    dplyr::filter(term == "treat")%>%
+    .[["estimate"]]
+  
+  
+  true <- data%>%
+    dplyr::filter(treat == 1)%>%
+    dplyr::mutate(effect = te + te_dynamic)%>%
+    dplyr::pull(effect)%>%
+    mean()
+  
+  return(data.frame(tau = true, tau_hat = estimate))
+}
+
+
+```
+
+We'll set up simulations with varying ammounts of treatment effect heterogeneity.
+Our simulated data will have 600 units clustered into 3 groups. Two of the groups 
+will have 5 identical treatment onsets. The third group will have 3 treatment onsets. 
+
+```{r}
+# homogenous
+homogenous <- list(
+  n = 400,
+  n_shifted = 200,
+  n_years = 9,
+  n_years_shifted = 4,
+  n_groups = 5,
+  n_groups_shifted = 3,
+  tes = rep(0.25, 5),
+  tes_shifted = rep(0.25, 3),
+  tes_slope = rep(0, 5),
+  tes_slope_sifted = rep(0, 3),
+  unit_fes = 0.1,
+  unit_fes_shifted = 0.1,
+  year_fes = rep(0.2, 9),
+  year_fes_shifted = rep(0.2, 4),
+  states = 1:3
+)
+
+heterogenous_years <- list(
+  n = 400,
+  n_shifted = 200,
+  n_years = 9,
+  n_years_shifted = 4,
+  n_groups = 5,
+  n_groups_shifted = 3,
+  tes = rep(0.25, 5),
+  tes_shifted = rep(0.25, 3),
+  tes_slope = rep(0, 5),
+  tes_slope_sifted = rep(0, 3),
+  unit_fes = 0.1,
+  unit_fes_shifted = 0.1,
+  year_fes = (1:9 * 0.1),
+  year_fes_shifted = c(0.2, 0.3, 0.4, 0.5),
+  states = 1:3
+)
+
+heterogenous_units <- list(
+  n = 400,
+  n_shifted = 200,
+  n_years = 9,
+  n_years_shifted = 4,
+  n_groups = 5,
+  n_groups_shifted = 3,
+  tes = rep(0.25, 5),
+  tes_shifted = rep(0.25, 3),
+  tes_slope = rep(0, 5),
+  tes_slope_shifted = rep(0, 3),
+  unit_fes = rnorm(400),
+  unit_fes_shifted = rnorm(200),
+  year_fes = (1:9 * 0.1),
+  year_fes_shifted = c(0.2, 0.3, 0.4, 0.5),
+  states = 1:3
+)
+
+heterogenous_full <- list(
+  n = 400,
+  n_shifted = 200,
+  n_years = 9,
+  n_years_shifted = 4,
+  n_groups = 5,
+  n_groups_shifted = 3,
+  tes = (1:5 * 0.1),
+  tes_shifted = c(0.3, 0.4, 0.5),
+  tes_slope = (1:5 * 0.1),
+  tes_slope_shifted = c(0.3, 0.4, 0.5),
+  unit_fes = rnorm(400),
+  unit_fes_shifted = rnorm(200),
+  year_fes = (1:9 * 0.1),
+  year_fes_shifted = c(0.2, 0.3, 0.4, 0.5),
+  states = 1:3
+)
+
+sim_params <- list(homogenous,heterogenous_years,heterogenous_units,heterogenous_full)
+
+```
+
+
+```{r, echo = FALSE}
+run_simulation <- function(params,n){
+  
+sim <- vector(mode = "list", n)
+
+for(i in 1:length(sim)){
+  
+  sim[[i]] <- simulate(n = params$n,
+                       n_shifted = params$n_shifted,
+                       n_years = params$n_years,
+                       n_years_shifted = params$n_years_shifted,
+                       n_groups = params$n_groups,
+                       n_groups_shifted = params$n_groups_shifted,
+                       tes = params$tes,
+                       tes_shifted = params$tes_shifted,
+                       tes_slope = params$tes_slope,
+                       tes_slope_shifted = params$tes_slope_shifted,
+                       unit_fes = params$unit_fes,
+                       unit_fes_shifted = params$unit_fes_shifted,
+                       year_fes = params$year_fes,
+                       year_fes_shifted = params$year_fes_shifted,
+                       states = params$states)
+  
+}
+
+sim <- dplyr::bind_rows(sim)%>%
+  dplyr::mutate(diff = tau - tau_hat)
+
+return(mean(sim$diff^2))
+  
+}
+
+```
+
+```{r}
+
+lapply(sim_params, function(p)
+  run_simulation(params = p, n = 25))%>%
+  unlist()%>%
+  as.data.frame()%>%
+  magrittr::set_colnames("MSE")%>%
+  magrittr::set_rownames(c("homogenous",
+                           "heterogeneity years",
+                           "heterogeneity years + units",
+                           "heterogeneity tau"))%>%
+  knitr::kable()
+
+```
+
+Pooling units with different treatment timings biases results when treatment effects vary 
+substantially by treatment timing. 
+
+### Estimation via Meta-Analysis  
+
+We simulate heterogenous data 
+```{r}
+
+het_minor <- list(
+  n = 400,
+  n_shifted = 200,
+  n_years = 7,
+  n_years_shifted = 4,
+  n_groups = 5,
+  n_groups_shifted = 3,
+  tes = (1:5 * 0.1),
+  tes_shifted = c(0.3, 0.4, 0.5),
+  tes_slope = (1:5 * 0.1),
+  tes_slope_sifted = c(0.3, 0.4, 0.5),
+  unit_fes = rnorm(400),
+  unit_fes_shifted = rnorm(200),
+  year_fes = (1:7 * 0.1),
+  year_fes_shifted = c(0.2, 0.3, 0.4, 0.5),
+  states = 1:3
+)
+
+
+het_major <- list(
+  n = 400,
+  n_shifted = 200,
+  n_years = 7,
+  n_years_shifted = 4,
+  n_groups = 5,
+  n_groups_shifted = 3,
+  tes = (1:5 * 0.1),
+  tes_shifted = c(1.3, 2.4, 3.5),
+  tes_slope = (1:5 * 0.1),
+  tes_slope_sifted = c(0.9, 1.2, 2.5),
+  unit_fes = rnorm(400),
+  unit_fes_shifted = rnorm(200),
+  year_fes = (1:7 * 0.1),
+  year_fes_shifted = c(0.2, 0.3, 0.4, 0.5),
+  states = 1:3
+)
+
+
+```
+
+
+```{r, echo = FALSE}
+
+het_minor <- make_shifted(het_minor$n,
+                          het_minor$n_shifted,
+                          het_minor$n_years,
+                          het_minor$n_years_shifted,
+                          het_minor$n_groups,
+                          het_minor$n_groups_shifted,
+                          het_minor$tes,
+                          het_minor$tes_shifted,
+                          het_minor$tes_slope,
+                          het_minor$tes_slope_shifted,
+                          het_minor$unit_fes,
+                          het_minor$units_fes_shifted,
+                          het_minor$year_fes,
+                          het_minor$years_fes_shifted,
+                          het_minor$states)
+
+het_major <- make_shifted(het_major$n,
+                          het_major$n_shifted,
+                          het_major$n_years,
+                          het_major$n_years_shifted,
+                          het_major$n_groups,
+                          het_major$n_groups_shifted,
+                          het_major$tes,
+                          het_major$tes_shifted,
+                          het_major$tes_slope,
+                          het_major$tes_slope_shifted,
+                          het_major$unit_fes,
+                          het_major$units_fes_shifted,
+                          het_major$year_fes,
+                          het_major$years_fes_shifted,
+                          het_major$states)
+
+```
+
+
+Analysis:
+```{r}
+
+estimates <- lapply(list(het_minor, het_major), function(d) {
+  estimate_pooled <- fixest::feols(y ~ treat | unit + year, data = d)
+  
+  est <- lapply(list(c(1, 2), c(3)), function(i) {
+    fixest::feols(y ~ treat |
+                    unit + year, data = dplyr::filter(d, state %in% i)) %>%
+      broom::tidy() %>%
+      dplyr::filter(term == "treat")
+  }) %>%
+    dplyr::bind_rows() %>%
+    dplyr::select(estimate, std.error) %>%
+    magrittr::set_colnames(c("ATT", "SE")) %>%
+    dplyr::mutate(model = as.character(1:2))
+  
+  
+  estimate_meta <- meta::metagen(
+    TE = est$ATT,
+    seTE = est$SE,
+    studlab = est$model,
+    data = est,
+    fixed = FALSE,
+    random = TRUE,
+    method.tau = "REML",
+    hakn = TRUE
+  )
+  
+  return(list(estimate_pooled, estimate_meta))
+  
+})
+
+
+```
+
+```{r, echo = FALSE}
+
+dat <- list(het_minor,het_major)
+het <- c("minor","major")
+dshow <- vector(mode = "list", length = 2)
+
+for(i in 1:length(estimates)) {
+  
+  estimate_meta <- data.frame(
+    effect = "meta",
+    ATT = estimates[[i]][[2]]$TE.fixed,
+    SE = estimates[[i]][[2]]$seTE.fixed,
+    ci.lower = estimates[[i]][[2]]$lower.fixed,
+    ci.upper = estimates[[i]][[2]]$upper.fixed
+  )
+  
+  
+  estimate_pooled <- estimates[[i]][[1]] %>%
+    broom::tidy() %>%
+    dplyr::filter(term == "treat") %>%
+    dplyr::mutate(estimation = "pooled") %>%
+    dplyr::select(estimation, estimate, std.error) %>%
+    dplyr::mutate(ci.lower = estimate - 1.96 * std.error,
+                  ci.upper = estimate + 1.96 * std.error) %>%
+    magrittr::set_colnames(c("effect", "ATT", "SE", "ci.lower", "ci.upper"))
+  
+  
+  tau <- dat[[i]] %>%
+    dplyr::filter(treat == 1) %>%
+    dplyr::mutate(effect = te + te_dynamic) %>%
+    dplyr::pull(effect) %>%
+    mean()
+  
+  true <- data.frame(
+    effect = "TRUE",
+    ATT = tau,
+    SE = NA,
+    ci.lower = NA,
+    ci.upper = NA
+  )
+  
+  hetg <- data.frame(heterogeneity = rep(het[i],3))
+  
+  dshow[[i]] <- rbind(true,estimate_pooled,estimate_meta)%>%
+    cbind(hetg,.)
+  
+}
+
+
+
+dshow%>%
+  dplyr::bind_rows()%>%
+  knitr::kable()
+
+```
+
+
+```{r, echo = FALSE}
+
+het_minor <- list(
+  n = 400,
+  n_shifted = 200,
+  n_years = 7,
+  n_years_shifted = 4,
+  n_groups = 5,
+  n_groups_shifted = 3,
+  tes = (1:5 * 0.1),
+  tes_shifted = c(0.3, 0.4, 0.5),
+  tes_slope = (1:5 * 0.1),
+  tes_slope_sifted = c(0.3, 0.4, 0.5),
+  unit_fes = rnorm(400),
+  unit_fes_shifted = rnorm(200),
+  year_fes = (1:7 * 0.1),
+  year_fes_shifted = c(0.2, 0.3, 0.4, 0.5),
+  states = 1:3
+)
+
+
+het_major <- list(
+  n = 400,
+  n_shifted = 200,
+  n_years = 7,
+  n_years_shifted = 4,
+  n_groups = 5,
+  n_groups_shifted = 3,
+  tes = (1:5 * 0.1),
+  tes_shifted = c(1.3, 2.4, 3.5),
+  tes_slope = (1:5 * 0.1),
+  tes_slope_sifted = c(0.9, 1.2, 2.5),
+  unit_fes = rnorm(400),
+  unit_fes_shifted = rnorm(200),
+  year_fes = (1:7 * 0.1),
+  year_fes_shifted = c(0.2, 0.3, 0.4, 0.5),
+  states = 1:3
+)
+
+
+
+
+run_simulation_meta <- function(runs){
+  
+res_major <- vector(mode = "list", length = runs)
+res_minor <- vector(mode = "list", length = runs)
+
+for(r in 1:runs){
+  
+  het_min <- make_shifted(
+    het_minor$n,
+    het_minor$n_shifted,
+    het_minor$n_years,
+    het_minor$n_years_shifted,
+    het_minor$n_groups,
+    het_minor$n_groups_shifted,
+    het_minor$tes,
+    het_minor$tes_shifted,
+    het_minor$tes_slope,
+    het_minor$tes_slope_shifted,
+    het_minor$unit_fes,
+    het_minor$units_fes_shifted,
+    het_minor$year_fes,
+    het_minor$years_fes_shifted,
+    het_minor$states
+  )
+  
+  het_maj <- make_shifted(
+    het_major$n,
+    het_major$n_shifted,
+    het_major$n_years,
+    het_major$n_years_shifted,
+    het_major$n_groups,
+    het_major$n_groups_shifted,
+    het_major$tes,
+    het_major$tes_shifted,
+    het_major$tes_slope,
+    het_major$tes_slope_shifted,
+    het_major$unit_fes,
+    het_major$units_fes_shifted,
+    het_major$year_fes,
+    het_major$years_fes_shifted,
+    het_major$states
+  )
+
+  estimates <- lapply(list(het_min, het_maj), function(d) {
+    estimate_pooled <- fixest::feols(y ~ treat | unit + year, data = d)%>%
+      broom::tidy()%>%
+      dplyr::filter(term == "treat")%>%
+      .[["estimate"]]
+    
+    est <- lapply(list(c(1, 2), c(3)), function(i) {
+      fixest::feols(y ~ treat |
+                      unit + year, data = dplyr::filter(d, state %in% i)) %>%
+        broom::tidy() %>%
+        dplyr::filter(term == "treat")
+    }) %>%
+      dplyr::bind_rows() %>%
+      dplyr::select(estimate, std.error) %>%
+      magrittr::set_colnames(c("ATT", "SE")) %>%
+      dplyr::mutate(model = as.character(1:2))
+    
+    
+    estimate_meta <- meta::metagen(
+      TE = est$ATT,
+      seTE = est$SE,
+      studlab = est$model,
+      data = est,
+      fixed = FALSE,
+      random = TRUE,
+      method.tau = "REML",
+      hakn = TRUE
+    )
+    
+    estimate_meta <- estimate_meta$TE.fixed
+    
+    tau <- d %>%
+    dplyr::filter(treat == 1) %>%
+    dplyr::mutate(effect = te + te_dynamic) %>%
+    dplyr::pull(effect) %>%
+    mean()
+    
+    
+    
+    return(data.frame(true = tau,
+                      pooled = estimate_pooled,
+                      meta = estimate_meta))
+    
+  })
+  
+  res_minor[[r]] <- estimates[[1]]
+  res_major[[r]] <- estimates[[2]]
+  
+}
+
+mse_minor <- res_minor%>%
+  dplyr::bind_rows()%>%
+  dplyr::mutate(dif_pool = (pooled - true)^2,
+                dif_meta = (meta - true)^2)%>%
+  dplyr::summarise(MSE_pooled = mean(dif_pool),
+                   MSE_meta = mean(dif_meta))%>%
+  dplyr::mutate(heterogeneity = "minor")%>%
+  dplyr::select(heterogeneity,MSE_pooled,MSE_meta)
+
+mse_major <- res_major%>%
+  dplyr::bind_rows()%>%
+  dplyr::mutate(dif_pool = (pooled - true)^2,
+                dif_meta = (meta - true)^2)%>%
+  dplyr::summarise(MSE_pooled = mean(dif_pool),
+                   MSE_meta = mean(dif_meta))%>%
+  dplyr::mutate(heterogeneity = "major")%>%
+  dplyr::select(heterogeneity,MSE_pooled,MSE_meta)
+
+
+return(rbind(mse_minor,mse_major))
+  
+}
+
+```
+
+```{r}
+run_simulation_meta(runs = 20)%>%
+  knitr::kable()
+````
