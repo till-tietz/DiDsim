@@ -27,9 +27,9 @@ did_panel_plot <- function(data, unit, year, group, treat){
 
 
   ggplot(data = data, aes(x = x_start, xend = x_end,
-                          y = y_start, yend = y_end,
-                          color = factor(.data[[group]]),
-                          alpha = .data[[treat]]))+
+                              y = y_start, yend = y_end,
+                              color = factor(.data[[group]]),
+                              alpha = .data[[treat]]))+
     geom_segment(key_glyph = "rect")+
     scale_alpha_discrete("Treatment Status",range = c(0.4,1))+
     scale_x_continuous(breaks = c(min(data$x_start):max(data$x_end)))+

@@ -10,6 +10,9 @@
 
 library(shiny)
 library(shinyWidgets)
+library(magrittr)
+library(dplyr)
+library(ggplot2)
 
 run_app <- function(){
 
@@ -160,11 +163,11 @@ run_app <- function(){
         te_m3 <- 0
       }
 
-      tibble(unit = 1:1000)%>%
+      tibble::tibble(unit = 1:1000)%>%
         dplyr::mutate(
-          unit_fe = rnorm(n(), 0, 0.5),
-          group = runif(n()),
-          group = case_when(
+          unit_fe = rnorm(dplyr::n(), 0, 0.5),
+          group = runif(dplyr::n()),
+          group = dplyr::case_when(
             group < 0.33 ~ "Group 1",
             group < 0.66 ~ "Group 2",
             TRUE ~ "Group 3"
@@ -180,16 +183,16 @@ run_app <- function(){
         dplyr::group_by(year)%>%
         dplyr::mutate(year_fe = rnorm(length(year), 0, 1))%>%
         dplyr::ungroup()%>%
-        mutate(
+        dplyr::mutate(
           treat = (year >= g) & (g %in% 0:input$panel_length[1]),
-          rel_year = if_else(g == 10000, Inf, as.numeric(year - g)),
-          rel_year_binned = case_when(
+          rel_year = dplyr::if_else(g == 10000, Inf, as.numeric(year - g)),
+          rel_year_binned = dplyr::case_when(
             rel_year == Inf ~ Inf,
             rel_year <= -6 ~ -6,
             rel_year >= 6 ~ 6,
             TRUE ~ rel_year
           ),
-          error = rnorm(n(), 0, 1),
+          error = rnorm(dplyr::n(), 0, 1),
           # Level Effect
           te =
             (group == "Group 1") * input$te1 * (year >= input$g1) +
@@ -219,8 +222,8 @@ run_app <- function(){
       did_panel_out <- did_panel_plot(data = gen_dat(), unit = "unit", year = "year",
                                       group = "group", treat = "treat")
 
-      legend_1 <- get_legend(did_plot_out)
-      legend_2 <- get_legend(did_panel_out)
+      #legend_1 <- get_legend(did_plot_out)
+      #legend_2 <- get_legend(did_panel_out)
 
       ggpubr::ggarrange(did_panel_out, did_plot_out,
                         ncol = 2, nrow = 1)
