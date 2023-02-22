@@ -1,9 +1,5 @@
 #' generate a DiD plot
 #'
-#' @name did_plot
-#'
-#' did_plot generates a plot showing group outcome means over time
-#'
 #' @param data A df of DiD panel data with year, outcome and group indicators
 #' @param year character vector specifying the name of the year variable
 #' @param y character vector specifying the name of the outcome variable

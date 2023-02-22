@@ -1,9 +1,5 @@
 #' generate a DiD panel plot
 #'
-#' @name did_panel_plot
-#'
-#' did_panel_plot generates a plot indicating unit group and treatment status over time
-#'
 #' @param data A df of DiD panel data with unit, group, year and treatment status indicators
 #' @param unit character vector specifying the name of the unit variable
 #' @param year character vector specifying the name of the year variable
