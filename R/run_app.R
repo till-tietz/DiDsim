@@ -1,10 +1,6 @@
 #' shinyApp for staggered DiD simulation
 #'
-#' @name run_app
-#'
-#' run_app is a wrapper for the ui,server and call elements of the shinyApp
-#'
-#' @return runs shinyApp
+#' @return None (invisible NULL)
 #' @export
 
 run_app <- function(){
