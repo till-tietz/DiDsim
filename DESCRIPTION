@@ -8,7 +8,7 @@ Description: A shiny app to diagnose bias and estimator performance for staggere
   DiD designs using simulation. 
 License: MIT + file LICENSE
 LazyData: true
-Imports: 
+Depends: 
    shiny (>= 1.7.1),
    shinyWidgets (>= 0.6.4),
    tibble (>= 3.1.6),

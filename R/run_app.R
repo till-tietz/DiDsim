@@ -2,20 +2,7 @@
 #'
 #' @return None (invisible NULL)
 #' @export
-#'
-#' @import shiny
-#' @import shinyWidgets
-#' @import tibble
-#' @import dplyr
-#' @import magrittr
-#' @import fixest
-#' @import ggplot2
-#' @import ggplotify
-#' @import ggpubr
-#' @import did
-#' @import tidyr
-#' @import PanelMatch
-#' @import magrittr
+
 
 run_app <- function(){
 

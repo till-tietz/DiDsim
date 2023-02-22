@@ -6,10 +6,7 @@
 #' @param group character vector specifying the name of the group variable
 #' @return a ggplot object
 #' @export
-#'
-#' @import dplyr
-#' @import magrittr
-#' @import ggplot2
+
 
 did_plot <- function(data, year, y, group){
 

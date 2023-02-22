@@ -7,8 +7,7 @@
 #' @param treat character vector specifying the name of the treatment variable
 #' @return a ggplot object
 #' @export
-#'
-#' @import ggplot2
+
 
 
 did_panel_plot <- function(data, unit, year, group, treat){
