@@ -6,7 +6,11 @@ run_app is a wrapper for the ui,server and call elements of the shinyApp}
 \alias{run_app
 
 run_app is a wrapper for the ui,server and call elements of the shinyApp}
+\alias{run_app}
 \title{shinyApp for staggered DiD simulation}
+\usage{
+run_app()
+}
 \value{
 runs shinyApp
 }

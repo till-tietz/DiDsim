@@ -7,13 +7,6 @@
 #' @return runs shinyApp
 #' @export
 
-
-library(shiny)
-library(shinyWidgets)
-library(magrittr)
-library(dplyr)
-library(ggplot2)
-
 run_app <- function(){
 
   ui <- navbarPage("DiDsim",

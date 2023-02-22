@@ -21,7 +21,7 @@ Imports:
    did (>= 2.1.1),
    tidyr (>= 1.2.0),
    PanelMatch(>= 2.0.0)
-RoxygenNote: 7.1.2
+RoxygenNote: 7.2.2
 Suggests: 
     rmarkdown,
     knitr,
